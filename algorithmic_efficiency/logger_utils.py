@@ -126,7 +126,10 @@ def _get_utilization() -> Dict:
   # CPU
   util_data['cpu.util.avg_percent_since_last'] = psutil.cpu_percent(
       interval=None)  # non-blocking (cpu util percentage since last call)
-  util_data['cpu.freq.current'] = psutil.cpu_freq().current
+  try:
+    util_data['cpu.freq.current'] = psutil.cpu_freq().current
+  except:
+    util_data['cpu.freq.current'] = 'N/A'
 
   # Memory
   memory_util = psutil.virtual_memory()

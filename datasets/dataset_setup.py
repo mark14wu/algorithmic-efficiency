@@ -184,7 +184,7 @@ flags.DEFINE_string('framework', None, 'Can be either jax or pytorch.')
 
 FLAGS = flags.FLAGS
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 def _maybe_mkdir(d):
