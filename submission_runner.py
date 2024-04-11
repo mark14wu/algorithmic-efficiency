@@ -376,6 +376,7 @@ def train_once(
         _reset_cuda_mem()
 
         try:
+          raise NotImplementedError
           eval_start_time = get_time()
           latest_eval_result = workload.eval_model(global_eval_batch_size,
                                                    model_params,
@@ -451,7 +452,7 @@ def train_once(
           _reset_cuda_mem()
 
         except RuntimeError as e:
-          logging.exception(f'Eval step {global_step} error.\n')
+          # logging.exception(f'Eval step {global_step} error.\n')
           if 'out of memory' in str(e):
             logging.warning('Error: GPU out of memory during eval during step '
                             f'{global_step}, error : {str(e)}.')
