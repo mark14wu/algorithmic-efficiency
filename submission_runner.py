@@ -50,6 +50,8 @@ from algorithmic_efficiency.pytorch_utils import pytorch_setup
 from algorithmic_efficiency.pytorch_utils import sync_ddp_time
 from algorithmic_efficiency.workloads import workloads
 
+from torch.profiler import profile, record_function, ProfilerActivity
+
 # disable only for deepspeech if it works fine for other workloads.
 os.environ['XLA_FLAGS'] = '--xla_gpu_enable_triton_gemm=false'
 
@@ -125,6 +127,8 @@ flags.DEFINE_boolean('use_wandb',
                      False,
                      'Whether to use Weights & Biases logging.')
 flags.DEFINE_boolean('profile', False, 'Whether to produce profiling output.')
+flags.DEFINE_boolean('torch_profiler', False, 'Whether use torch profiler to produce profiling output.')
+flags.DEFINE_string('torch_profiler_out_prefix', "/scratch/hwu27/", 'Output JSON path of torch profiler')
 flags.DEFINE_integer('max_global_steps',
                      None,
                      'Maximum number of update steps.')
@@ -315,6 +319,9 @@ def train_once(
   goals_reached = (
       train_state['validation_goal_reached'] and
       train_state['test_goal_reached'])
+  if FLAGS.torch_profiler:
+    prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True, with_stack=True)
+    prof.__enter__()
   while train_state['is_time_remaining'] and \
       not goals_reached and \
       not train_state['training_complete']:
@@ -452,6 +459,15 @@ def train_once(
 
     train_state['last_step_end_time'] = get_time()
 
+  if FLAGS.torch_profiler:
+    prof.__exit__(None, None, None)
+    import datetime
+    formatted_now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    if RANK == 0:
+      json_filename = f"{FLAGS.workload}_{formatted_now}_torch_profiler.json"
+      json_path = os.path.join(FLAGS.torch_profiler_out_prefix, json_filename)
+      logging.info(f'Output to {json_path} on Rank 0.')
+      prof.export_chrome_trace(json_path)
   metrics = {'eval_results': eval_results, 'global_step': global_step}
 
   if log_dir is not None:
