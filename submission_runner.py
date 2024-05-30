@@ -99,7 +99,7 @@ flags.DEFINE_enum(
     'other things if the Jax or Numpy RNG library is used for RNG.')
 flags.DEFINE_boolean(
     'torch_compile',
-    True,
+    False,
     'Whether to use `torch.compile` to JIT-compile PyTorch code. '
     'This will only take effect when `framework`==pytorch.')
 
@@ -224,6 +224,21 @@ def train_once(
       aux_dropout_rate = hyperparameters.aux_dropout_rate
     model_params, model_state = workload.init_model_fn(
         model_init_rng, dropout_rate, aux_dropout_rate)
+
+    # set optimization levels
+    optimization_levels = ['wmt_1', 'ogbg_1']
+    if 'wmt_1' in optimization_levels:
+      workload.loss_fn = torch.compile(workload.loss_fn)
+    if 'ogbg_1' in optimization_levels:
+      workload.loss_fn = torch.compile(workload.loss_fn)
+
+    # print if torch.compile is on
+    if RANK == 0:
+      if FLAGS.torch_compile:
+        logging.info('torch_compile is on!')
+      else:
+        logging.info('torch_compile is off!')
+
     if FLAGS.framework == 'pytorch' and FLAGS.torch_compile:
       compile_error_workloads = [
           'librispeech_conformer',
