@@ -226,10 +226,13 @@ def train_once(
         model_init_rng, dropout_rate, aux_dropout_rate)
 
     # set optimization levels
-    optimization_levels = ['wmt_1', 'ogbg_1']
-    if 'wmt_1' in optimization_levels:
+    # optimization_levels = ['wmt_1', 'ogbg_1']
+    optimization_levels = []
+    base_workload = workloads.get_base_workload_name(workload_name)
+    logging.info(f'The current base workload is {base_workload}.')
+    if base_workload == 'wmt' and 'wmt_1' in optimization_levels:
       workload.loss_fn = torch.compile(workload.loss_fn)
-    if 'ogbg_1' in optimization_levels:
+    if base_workload == 'ogbg' and 'ogbg_1' in optimization_levels:
       workload.loss_fn = torch.compile(workload.loss_fn)
 
     # print if torch.compile is on
