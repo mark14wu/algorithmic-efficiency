@@ -3,6 +3,10 @@ from typing import Dict, Iterator, Tuple
 from algorithmic_efficiency import spec
 
 
+count = 0
+batch_cache = []
+batch_cache_init = False
+prefetch_opt = False
 def data_selection(
     workload: spec.Workload,
     input_queue: Iterator[Dict[str, spec.Tensor]],
@@ -22,5 +26,17 @@ def data_selection(
   del hyperparameters
   del global_step
   del rng
-  batch = next(input_queue)
+  if not prefetch_opt:
+    return next(input_queue)
+  global count, batch_cache, batch_cache_init
+  if not batch_cache_init:
+    batch_cache_init = True
+    for i in range(101):
+      batch_cache.append(next(input_queue))
+  if count < 101:
+    assert batch_cache_init, "batch_cache not initialized"
+    batch = batch_cache[count]
+    count += 1
+  else:
+    batch = next(input_queue)
   return batch
