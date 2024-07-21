@@ -169,8 +169,13 @@ class GraphNetwork(nn.Module):
       raise ValueError(
           'All node arrays in nest must contain the same number of nodes.')
 
-    sent_attributes = tree.tree_map(lambda n: n[senders], nodes)
-    received_attributes = tree.tree_map(lambda n: n[receivers], nodes)
+    OPT_TREE_MAP = False
+    if OPT_TREE_MAP:
+      sent_attributes = tree.tree_map(lambda n: n.index_select(0, senders), nodes)
+      received_attributes = tree.tree_map(lambda n: n.index_select(0, receivers), nodes)
+    else:
+      sent_attributes = tree.tree_map(lambda n: n[senders], nodes)
+      received_attributes = tree.tree_map(lambda n: n[receivers], nodes)
     # Here we scatter the global features to the corresponding edges,
     # giving us tensors of shape [num_edges, global_feat].
     global_edge_attributes = tree.tree_map(
