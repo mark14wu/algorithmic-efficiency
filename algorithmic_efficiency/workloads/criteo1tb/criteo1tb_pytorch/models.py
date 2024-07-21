@@ -273,7 +273,11 @@ class DlrmSmall(nn.Module):
     sparse_features = sparse_features.to(dtype=torch.int32)
     idx_lookup = torch.reshape(sparse_features, [-1]) % self.vocab_size
     embedding_table = torch.cat(self.embedding_table_chucks, dim=0)
-    embedded_sparse = embedding_table[idx_lookup]
+    OPT_ATEN_INDEXING = False
+    if OPT_ATEN_INDEXING:
+      embedded_sparse = embedding_table.index_select(0, idx_lookup)
+    else:
+      embedded_sparse = embedding_table[idx_lookup]
     embedded_sparse = torch.reshape(embedded_sparse,
                                     [batch_size, -1, self.embed_dim])
     if self.embed_ln:
