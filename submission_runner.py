@@ -484,6 +484,8 @@ def train_once(
     formatted_now = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     if RANK == 0:
       json_filename = f"{FLAGS.workload}_{formatted_now}_torch_profiler.json"
+      if not os.path.exists(FLAGS.torch_profiler_out_prefix):
+        os.makedirs(FLAGS.torch_profiler_out_prefix, exist_ok=True)
       json_path = os.path.join(FLAGS.torch_profiler_out_prefix, json_filename)
       logging.info(f'Output to {json_path} on Rank 0.')
       prof.export_chrome_trace(json_path)
