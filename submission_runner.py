@@ -129,6 +129,8 @@ flags.DEFINE_boolean('use_wandb',
 flags.DEFINE_boolean('profile', False, 'Whether to produce profiling output.')
 flags.DEFINE_boolean('torch_profiler', False, 'Whether use torch profiler to produce profiling output.')
 flags.DEFINE_string('torch_profiler_out_prefix', "/scratch/hwu27/", 'Output JSON path of torch profiler')
+flags.DEFINE_boolean('jax_profiler', False, 'Whether use jax profiler to produce profiling output.')
+flags.DEFINE_string('jax_profiler_out_prefix', "/scratch/hwu27/jax_jsons", 'Output JSON path of jax profiler')
 flags.DEFINE_integer('max_global_steps',
                      None,
                      'Maximum number of update steps.')
@@ -337,8 +339,14 @@ def train_once(
   goals_reached = (
       train_state['validation_goal_reached'] and
       train_state['test_goal_reached'])
+  assert not (FLAGS.torch_profiler and FLAGS.jax_profiler), 'Only one profiler can be enabled at a time.'
   if FLAGS.torch_profiler:
-    prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True, with_stack=True)
+    prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], with_stack=True)
+    prof.__enter__()
+  elif FLAGS.jax_profiler:
+    if not os.path.exists(FLAGS.jax_profiler_out_prefix):
+        os.makedirs(FLAGS.jax_profiler_out_prefix, exist_ok=True)
+    prof = jax.profiler.trace(FLAGS.jax_profiler_out_prefix, create_perfetto_link=False, create_perfetto_trace=True)
     prof.__enter__()
   while train_state['is_time_remaining'] and \
       not goals_reached and \
@@ -662,6 +670,11 @@ def main(_):
   if FLAGS.framework == 'pytorch':
     pytorch_init(USE_PYTORCH_DDP, RANK, profiler)
 
+  # check if gpu backend is enabled
+  if FLAGS.framework == 'jax':
+    from jax.lib import xla_bridge
+    logging.info(f'backend: {xla_bridge.get_backend().platform}')
+    assert xla_bridge.get_backend().platform == 'gpu', f"backend should be gpu!"
   workload_metadata = WORKLOADS[FLAGS.workload]
 
   # Prevent OOM on librispeech conformer.
