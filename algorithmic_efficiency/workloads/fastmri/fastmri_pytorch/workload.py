@@ -21,6 +21,11 @@ from algorithmic_efficiency.workloads.fastmri.workload import \
 
 USE_PYTORCH_DDP, RANK, DEVICE, N_GPUS = pytorch_utils.pytorch_setup()
 
+import os
+# DEBUG = os.getenv('WUHAO_DEBUG')
+DEBUG = False
+# OPT_CHANNEL_LAST = os.getenv('OPT_CHANNEL_LAST')
+OPT_CHANNEL_LAST = False
 
 class FastMRIWorkload(BaseFastMRIWorkload):
 
@@ -59,9 +64,20 @@ class FastMRIWorkload(BaseFastMRIWorkload):
               tensor_list.append(tensor)
             else:
               aux_tensor_list.append(tensor)
-          batch[key] = (
-              tensor[0] if USE_PYTORCH_DDP else tensor.view(
-                  -1, *value.shape[2:]))
+          if key == 'inputs':
+            if USE_PYTORCH_DDP:
+              raise NotImplementedError('Not supported for DDP.')
+            tensor = tensor.view((-1, 1, *value.shape[2:]))
+            if OPT_CHANNEL_LAST:
+              tensor = tensor.to(memory_format=torch.channels_last)
+            batch[key] = tensor
+          else:
+            batch[key] = (
+                tensor[0] if USE_PYTORCH_DDP else tensor.view(
+                    -1, *value.shape[2:]))
+          if DEBUG and key == 'inputs':
+            print('debug3 shape:', batch[key].shape)
+            print('debug3 stride:', batch[key].stride())
         # Send batch to other devices when using DDP.
         if USE_PYTORCH_DDP:
           if split != 'train':
@@ -158,10 +174,28 @@ class FastMRIWorkload(BaseFastMRIWorkload):
         spec.ForwardPassMode.TRAIN: contextlib.nullcontext,
     }
 
+    if DEBUG:
+      print('=========input=======')
+      print('Shape of input tensor:', x.shape)
+      print('Strides of input tensor:', x.stride())
+      print('=====================')
+
     with contexts[mode]():
-      logit_batch = model(
-          augmented_and_preprocessed_input_batch['inputs'].unsqueeze(
-              1)).squeeze(1)
+      x = augmented_and_preprocessed_input_batch['inputs']
+      if DEBUG:
+        print('debug4 shape:', x.shape)
+        print('debug4 stride:', x.stride())
+      # x = x.unsqueeze(1)
+        print('debug5 shape:', x.shape)
+        print('debug5 stride:', x.stride())
+      # x = x.to(memory_format=torch.channels_last)
+        print('debug6 shape:', x.shape)
+        print('debug6 stride:', x.stride())
+      logit_batch = model(x).squeeze(1)
+
+      # logit_batch = model(
+      #     augmented_and_preprocessed_input_batch['inputs'].unsqueeze(
+      #         1)).squeeze(1)
 
     return logit_batch, None
 
